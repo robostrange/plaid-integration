@@ -1,2 +1,8 @@
 .env
 data/
+notes.txt
+env/
+*.pyc
+__pycache__/
+.vscode/
+*.xlsx
