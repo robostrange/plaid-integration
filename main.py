@@ -2,102 +2,107 @@ import os
 from dotenv import load_dotenv
 import plaid
 from plaid.api import plaid_api
-import openpyxl
 import pandas as pd
 from datetime import datetime
 from plaid.model.transactions_get_request import TransactionsGetRequest
+import openpyxl
+from openpyxl import load_workbook, styles
+from openpyxl.styles import NamedStyle
 
-# Load environment variables from .env file
+# Load environment variables
 load_dotenv()
 
-# Debugging measure to check if tokens are being loaded correctly
-print("Loaded Variables:")
-print("PLAID_CLIENT_ID:", os.getenv('PLAID_CLIENT_ID'))
-print("PLAID_SECRET:", os.getenv('PLAID_SANDBOX_SECRET'))
-print("ACCESS_TOKEN:", os.getenv('ACCESS_TOKEN'))
-
-# Define constants for Plaid's API keys
 PLAID_CLIENT_ID = os.getenv('PLAID_CLIENT_ID')
-PLAID_SECRET = os.getenv('PLAID_SANDBOX_SECRET')  # Change for development
-PLAID_ENVIRONMENT = 'sandbox'  # Change for development
-ACCESS_TOKEN = os.getenv('ACCESS_TOKEN')  # Temporary access token
+PLAID_SECRET = os.getenv('PLAID_SANDBOX_SECRET')
+ACCESS_TOKEN = os.getenv('ACCESS_TOKEN')
 
-# Set up Plaid client
-configuration = plaid.Configuration(
-    host=plaid.Environment.Sandbox if PLAID_ENVIRONMENT == 'sandbox' else plaid.Environment.Development,
-    api_key={'clientId': PLAID_CLIENT_ID, 'secret': PLAID_SECRET}
-)
-api_client = plaid.ApiClient(configuration)
-client = plaid_api.PlaidApi(api_client)
+# Constants
+HEADERS = ["TRANS_ID", "DATE", "DESCRIPTION", "INSTITUTION", "ACCOUNT TYPE", "CATEGORY", "AMOUNT", "STATUS"]
 
-# Function to retrieve transactions from Plaid
-def get_transactions(access_token, start_date_str, end_date_str):
+# Initialize Plaid client
+def init_plaid_client():
+    config = plaid.Configuration(
+        host=plaid.Environment.Sandbox,
+        api_key={'clientId': PLAID_CLIENT_ID, 'secret': PLAID_SECRET}
+    )
+    return plaid_api.PlaidApi(plaid.ApiClient(config))
+
+# Fetch transactions from Plaid
+def get_transactions(client, access_token, start_date_str, end_date_str):
     try:
         # Convert string dates to datetime objects in format 'YYYY-MM-DD'
         start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
         end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
 
-        # Create a TransactionsGetRequest object
+        # Create a TransactionsGetRequest object with the date objects
         request = TransactionsGetRequest(access_token=access_token, start_date=start_date, end_date=end_date)
         response = client.transactions_get(request)
         return response['transactions']
     except plaid.ApiException as e:
-        print("Error fetching transactions:", e)
+        print(f"Error fetching transactions: {e}")
         return []
 
-# Function to format transactions into a DataFrame
+# Format transactions into DataFrame
 def format_transactions(transactions):
-    if transactions:
-        df = pd.DataFrame(transactions)
-        # TODO: Format DataFrame as needed (e.g., rename columns, format dates)
-        return df
-    else:
-        return pd.DataFrame()  # Return empty DataFrame if no transactions
+    formatted = []
+    for txn in transactions:
+        formatted.append({
+            "TRANS_ID": txn.get('transaction_id', ''),
+            "DATE": txn.get('date', ''),
+            "DESCRIPTION": txn.get('name', ''),
+            "INSTITUTION": 'TBD',  # Placeholder for actual institution data
+            "ACCOUNT TYPE": 'TBD',  # Placeholder for account type
+            "CATEGORY": ' > '.join(txn.get('category', [])),
+            "AMOUNT": txn.get('amount', 0),
+            "STATUS": 'Pending' if txn.get('pending', False) else 'Completed'
+        })
+    return pd.DataFrame(formatted, columns=HEADERS)
 
-# Function to update the workbook with transactions
-def update_workbook(transactions_df, workbook_path='finances-workbook.xlsx'):
-    if not transactions_df.empty:
-        with pd.ExcelWriter(workbook_path, engine='openpyxl', mode='a') as writer:
-            # Check if 'Transactions' sheet exists and remove it
-            if 'Transactions' in writer.book.sheetnames:
-                std = writer.book['Transactions']
-                writer.book.remove(std)
-
-            # Write transactions to a new 'Transactions' sheet
-            transactions_df.to_excel(writer, sheet_name="Transactions", index=False)
-
-    else:
+# Update Excel workbook with transaction data
+def update_workbook(df, path):
+    if df.empty:
         print("No transactions to update.")
+        return
 
-# Function to reorder sheets in the workbook
-def reorder_sheets(workbook_path, sheet_name, desired_index):
-    book = openpyxl.load_workbook(workbook_path)
-    if sheet_name in book.sheetnames:
-        sheet = book[sheet_name]
-        book.remove(sheet)
-        book._sheets.insert(desired_index, sheet)
-        book.save(workbook_path)
+    with pd.ExcelWriter(path, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
+        df.to_excel(writer, sheet_name='Transactions', index=False)
+        ws = writer.book['Transactions']
+        apply_styles_to_sheet(ws)
 
-# Main script execution
+# Apply styles to Excel sheet
+def apply_styles_to_sheet(ws):
+    set_column_widths(ws)
+    currency_style = NamedStyle(name='currency', number_format='"$"#,##0.00')
+    for row in ws.iter_rows(min_row=2):
+        row[0].number_format = '@'  # TRANS_ID as text
+        row[1].number_format = 'MM/DD/YYYY'  # DATE
+        row[6].style = currency_style  # AMOUNT
+
+def set_column_widths(ws):
+    column_widths = {'A': 12, 'B': 11, 'C': 75, 'D': 13, 'E': 13, 'F': 38, 'G': 9, 'H': 9}
+    for col, width in column_widths.items():
+        ws.column_dimensions[col].width = width
+
+# Reorder sheets in workbook
+def reorder_sheets(path, sheet_name, index):
+    book = load_workbook(path)
+    sheet = book[sheet_name]
+    book.remove(sheet)
+    book._sheets.insert(index, sheet)
+    book.save(path)
+
+# Script execution
 if __name__ == "__main__":
-    print("Starting main script execution...")
+    print("Starting script...")
+    client = init_plaid_client()
     start_date = (datetime.now() - pd.DateOffset(months=2)).strftime('%Y-%m-%d')
     end_date = datetime.now().strftime('%Y-%m-%d')
+    transactions = get_transactions(client, ACCESS_TOKEN, start_date, end_date)
+    formatted_data = format_transactions(transactions)
+    update_workbook(formatted_data, 'finances-workbook.xlsx')
+    if not formatted_data.empty:
+        reorder_sheets('finances-workbook.xlsx', 'Transactions', 0)
+    print("Script completed.")
 
-    print(f"Fetching transactions from {start_date} to {end_date}...")
-    transactions = get_transactions(ACCESS_TOKEN, start_date, end_date)
-    print(f"Retrieved {len(transactions)} transactions.")
-
-    formatted_transactions = format_transactions(transactions)
-    print("Transactions formatted.")
-
-    workbook_path = 'finances-workbook.xlsx'
-    print(f"Updating workbook at {workbook_path}...")
-    update_workbook(formatted_transactions, workbook_path)
-    reorder_sheets('finances-workbook.xlsx', 'Transactions', 2)  # Adjust index as needed
-    print("Workbook updated.")
-    print("Script execution complete.")
-
-# TODO: Add detailed comments and docstrings.
-# TODO: Implement robust error handling and logging.
-# TODO: Enhance data formatting in format_transactions function.
+# Constants and global variables
+HEADERS = ["TRANS_ID", "DATE", "DESCRIPTION", "INSTITUTION", "ACCOUNT TYPE", "CATEGORY", "AMOUNT", "STATUS"]
