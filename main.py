@@ -8,6 +8,7 @@ from plaid.model.transactions_get_request import TransactionsGetRequest
 import openpyxl
 from openpyxl import load_workbook, styles
 from openpyxl.styles import NamedStyle
+from flask import Flask
 
 # Load environment variables
 load_dotenv()
@@ -18,6 +19,16 @@ ACCESS_TOKEN = os.getenv('ACCESS_TOKEN')
 
 # Constants
 HEADERS = ["TRANS_ID", "DATE", "DESCRIPTION", "INSTITUTION", "ACCOUNT TYPE", "CATEGORY", "AMOUNT", "STATUS"]
+
+app = Flask(__name__)
+
+@app.route('/')
+def index():
+    return 'Hello, this is the Plaid Integration app!'
+
+if __name__ == '__main__':
+    app.run()
+
 
 # Initialize Plaid client
 def init_plaid_client():
