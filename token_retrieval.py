@@ -7,7 +7,7 @@ load_dotenv()
 
 # Plaid credentials from .env file
 PLAID_CLIENT_ID = os.getenv('PLAID_CLIENT_ID')
-PLAID_SANDBOX_SECRET = os.getenv('PLAID_SANDBOX_SECRET')
+PLAID_DEVELOPMENT_SECRET = os.getenv('PLAID_DEVELOPMENT_SECRET')
 
 def create_link_token():
     """
@@ -17,7 +17,7 @@ def create_link_token():
         'https://sandbox.plaid.com/link/token/create',
         json={
             'client_id': PLAID_CLIENT_ID,
-            'secret': PLAID_SANDBOX_SECRET,
+            'secret': PLAID_DEVELOPMENT_SECRET,
             'client_name': "Your App Name",
             'country_codes': ['US'],
             'language': 'en',
@@ -35,7 +35,7 @@ def exchange_public_token(public_token):
         'https://sandbox.plaid.com/item/public_token/exchange',
         json={
             'client_id': PLAID_CLIENT_ID,
-            'secret': PLAID_SANDBOX_SECRET,
+            'secret': PLAID_DEVELOPMENT_SECRET,
             'public_token': public_token
         }
     )
@@ -49,7 +49,7 @@ def create_sandbox_public_token():
         'https://sandbox.plaid.com/sandbox/public_token/create',
         json={
             'client_id': PLAID_CLIENT_ID,
-            'secret': PLAID_SANDBOX_SECRET,
+            'secret': PLAID_DEVELOPMENT_SECRET,
             'institution_id': 'ins_1',
             'initial_products': ['transactions']
         }

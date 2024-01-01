@@ -1,0 +1,36 @@
+amexAmount =AMEX!$D$2:$D$1048576
+amexBalance =AMEX!$E$2:$E$1048576
+amexCategory =AMEX!$C$2:$C$1048576
+appleAmount ='APPLE CARD'!$D$2:$D$1048576
+appleBalance ='APPLE CARD'!$E$2:$E$1048576
+appleCategory ='APPLE CARD'!$C$2:$C$1048576
+nfcuBalance =NFCU!$F$2:$F$1048576
+nfcuCategory =NFCU!$C$2:$C$1048576
+nfcuDeposit =NFCU!$E$2:$E$1048576
+nfcuWithdrawal =NFCU!$D$2:$D$1048576
+nfcuvisaAmount ='NFCU VISA'!$D$2:$D$1048576
+nfcuvisaBalance ='NFCU VISA'!$E$2:$E$1048576
+nfcuvisaCategory ='NFCU VISA'!$C$2:$C$1048576
+paypalAmount =PAYPAL!$D$2:$D$1048576
+paypalCategory =PAYPAL!$C$2:$C$1048576
+paypalcreditAmount ='PAYPAL CREDIT'!$D$2:$D$1048576
+paypalcreditCategory ='PAYPAL CREDIT'!$C$2:$C$1048576
+pennymacAmount =PENNYMAC!$C$2:$C$1048576
+pennymacPayoffAmount =PENNYMAC!$D$2:$D$1048576
+transactionAmount =Transactions!$G$2:$G$1048576
+transactionCategory =Transactions!$F$2:$F$1048576
+
+Title: finances-workbook
+Tab 1: "Dashboard" - No headers as this will be populated with the appropriate graphs and tables.
+Tab 2: "Budgeting" - No headers as of now as this too will have tables and visualizations.
+Tab 3: "Transactions" - Headers = TRANS_ID    Date	Description	Institution	Account Type	Category	Amount	Status
+Tab 4: "NFCU" - Headers = Date	Description	Category	Withdrawal	Deposit	Balance	Notes
+//Tabs 5-8 will have the same headers: Date	Description	Category	Amount	Balance	Notes
+Tab 5: "NFCU VISA"
+Tab 6: "AMEX"
+Tab 7: "APPLE CARD"
+Tab 8: "PAYPAL CREDIT"
+//Tab 9 PayPal doesn't carry a balance as it withdraws from NFCU to pay, so there is no balance.  But should be used when visualizing data regarding part of where money is being spent. But ensure transactions are not being counted twice and these transactions will be show up on NFCU Checking as a PayPal transaction.
+Tab 9: "PAYPAL" - Headers = Date	Description	Category	Amount	Notes
+//PennyMac is a mortgage account
+Tab 10: "PENNYMAC" - Headers = Date	Description	Amount	Payoff Amount

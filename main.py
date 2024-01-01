@@ -13,7 +13,7 @@ from openpyxl.styles import NamedStyle
 load_dotenv()
 
 PLAID_CLIENT_ID = os.getenv('PLAID_CLIENT_ID')
-PLAID_SECRET = os.getenv('PLAID_SANDBOX_SECRET')
+PLAID_SECRET = os.getenv('PLAID_DEVELOPMENT_SECRET')
 ACCESS_TOKEN = os.getenv('ACCESS_TOKEN')
 
 # Constants
@@ -22,7 +22,7 @@ HEADERS = ["TRANS_ID", "DATE", "DESCRIPTION", "INSTITUTION", "ACCOUNT TYPE", "CA
 # Initialize Plaid client
 def init_plaid_client():
     config = plaid.Configuration(
-        host=plaid.Environment.Sandbox,
+        host=plaid.Environment.Development,
         api_key={'clientId': PLAID_CLIENT_ID, 'secret': PLAID_SECRET}
     )
     return plaid_api.PlaidApi(plaid.ApiClient(config))
@@ -104,5 +104,4 @@ if __name__ == "__main__":
         reorder_sheets('finances-workbook.xlsx', 'Transactions', 0)
     print("Script completed.")
 
-# Constants and global variables
-HEADERS = ["TRANS_ID", "DATE", "DESCRIPTION", "INSTITUTION", "ACCOUNT TYPE", "CATEGORY", "AMOUNT", "STATUS"]
+
