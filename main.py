@@ -1,43 +1,90 @@
 import os
 from dotenv import load_dotenv
+from flask import Flask, jsonify, request
 import plaid
 from plaid.api import plaid_api
 import pandas as pd
 from datetime import datetime
 from plaid.model.transactions_get_request import TransactionsGetRequest
 import openpyxl
-from openpyxl import load_workbook, styles
+from openpyxl import load_workbook
 from openpyxl.styles import NamedStyle
-from flask import Flask
+from pymongo.mongo_client import MongoClient
+from pymongo.server_api import ServerApi
 
 # Load environment variables
 load_dotenv()
 
 PLAID_CLIENT_ID = os.getenv('PLAID_CLIENT_ID')
 PLAID_SECRET = os.getenv('PLAID_DEVELOPMENT_SECRET')
-ACCESS_TOKEN = os.getenv('ACCESS_TOKEN')
+# ACCESS_TOKEN is now dynamically obtained after Plaid Link process
+MONGODB_USER = os.getenv('MONGODB_USER')
+MONGODB_PW = os.getenv('MONGODB_PW')
+
+# MongoDB URI
+uri = f"mongodb+srv://{MONGODB_USER}:{MONGODB_PW}@cluster0.mlyhyf1.mongodb.net/?retryWrites=true&w=majority"
+# Create MongoDB client
+mongodb_client = MongoClient(uri, server_api=ServerApi('1'))
+
+db = mongodb_client['plaid-integration']  # Replace with your MongoDB database name
+access_tokens_collection = db.access_tokens
 
 # Constants
 HEADERS = ["TRANS_ID", "DATE", "DESCRIPTION", "INSTITUTION", "ACCOUNT TYPE", "CATEGORY", "AMOUNT", "STATUS"]
 
 app = Flask(__name__)
 
-@app.route('/')
-def index():
-    return 'Hello, this is the Plaid Integration app!'
-
-if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
-
-
 # Initialize Plaid client
 def init_plaid_client():
     config = plaid.Configuration(
         host=plaid.Environment.Development,
-        api_key={'clientId': PLAID_CLIENT_ID, 'secret': PLAID_SECRET}
+        api_key={
+            'clientId': PLAID_CLIENT_ID,
+            'secret': PLAID_SECRET
+        }
     )
-    return plaid_api.PlaidApi(plaid.ApiClient(config))
+    client = plaid.ApiClient(config)
+    return plaid_api.PlaidApi(client)
+
+plaid_client = init_plaid_client()
+
+@app.route('/create_link_token', methods=['POST'])
+def create_link_token():
+    try:
+        response = plaid_client.link_token_create({
+            'user': {
+                'client_user_id': 'unique_user_id',  # Adjust as needed
+            },
+            'client_name': "Plaid Integration App",
+            'products': ["transactions"],
+            'country_codes': ["US"],
+            'language': "en",
+        })
+        return jsonify(response.to_dict())
+    except plaid.ApiException as e:
+        return jsonify({'error': str(e)})
+
+@app.route('/get_access_token', methods=['POST'])
+def get_access_token():
+    public_token = request.json['public_token']
+    try:
+        exchange_response = plaid_client.item_public_token_exchange({'public_token': public_token})
+        access_token = exchange_response['access_token']
+
+        # Insert access token into MongoDB
+        access_tokens_collection.insert_one({'access_token': access_token})
+
+        return jsonify({'access_token': access_token})
+    except plaid.ApiException as e:
+        return jsonify({'error': str(e)})
+
+def get_stored_access_token():
+    token_document = access_tokens_collection.find_one()  # Adjust query as needed
+    return token_document['access_token'] if token_document else None
+
+
+if __name__ == '__main__':
+    app.run(port=int(os.environ.get("PORT", 5000)), host='0.0.0.0', debug=True)
 
 # Fetch transactions from Plaid
 def get_transactions(client, access_token, start_date_str, end_date_str):
@@ -103,17 +150,6 @@ def reorder_sheets(path, sheet_name, index):
     book._sheets.insert(index, sheet)
     book.save(path)
 
-# Script execution
-if __name__ == "__main__":
-    print("Starting script...")
-    client = init_plaid_client()
-    start_date = (datetime.now() - pd.DateOffset(months=2)).strftime('%Y-%m-%d')
-    end_date = datetime.now().strftime('%Y-%m-%d')
-    transactions = get_transactions(client, ACCESS_TOKEN, start_date, end_date)
-    formatted_data = format_transactions(transactions)
-    update_workbook(formatted_data, 'finances-workbook.xlsx')
-    if not formatted_data.empty:
-        reorder_sheets('finances-workbook.xlsx', 'Transactions', 0)
-    print("Script completed.")
+
 
 
