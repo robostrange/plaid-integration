@@ -11,7 +11,7 @@
     <script>
     document.getElementById('link-button').onclick = function() {
       // Fetch the link token from your server
-      fetch('/create_link_token', { method: 'POST' })
+      fetch('https://plaid-integration-688885d8301d.herokuapp.com/create_link_token', { method: 'POST' })
         .then(response => response.json())
         .then(data => {
           const handler = Plaid.create({
@@ -27,6 +27,11 @@
             // ... other configuration options ...
           });
           handler.open();
+        });
+    fetch('https://plaid-integration-688885d8301d.herokuapp.com/get_access_token', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({public_token: public_token})
         });
     };
     </script>

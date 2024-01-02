@@ -149,7 +149,3 @@ def reorder_sheets(path, sheet_name, index):
     book.remove(sheet)
     book._sheets.insert(index, sheet)
     book.save(path)
-
-
-
-
